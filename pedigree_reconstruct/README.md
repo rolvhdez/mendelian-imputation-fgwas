@@ -7,7 +7,7 @@ chmod +x run_workflow.sh
 ./run_workflow.sh
 ```
 
-This will essentially create a pedigree file in `/tmp/pedigree.txt` using the [snipar]() algorithm to create a pedigree using kinship relationships (parent-offspring pairs) and age-sex information for each individual:
+This will essentially create a pedigree file in `/tmp/pedigree.txt` using the [snipar](https://github.com/AlexTISYoung/snipar/tree/master) algorithm to create a pedigree using kinship relationships (parent-offspring pairs) and age-sex information for each individual:
 
 ```python
 from snipar.pedigree import create_pedigree
