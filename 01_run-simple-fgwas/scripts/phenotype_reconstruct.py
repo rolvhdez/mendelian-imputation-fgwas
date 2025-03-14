@@ -14,17 +14,15 @@ df_pcs = gate.Data_Gateway(input_paths[1]).load_table()
 # Get PC IDs as the BASELINE format
 df_pcs["PATID"] = df_pcs.iloc[:,0].str.extract(r'^\w+\_(\w+\d+)\_\w+')[0]
 
-# Modify BASELINE 
-df_new_baseline = df_baseline.merge(
+# Add GENOTYPE and FAMILY IDs to BASELINE
+phenotype = df_baseline.merge(
     df_pcs[["sample.ID","PATID"]], 
-    left_on="PATID", right_on="PATID", how="left"
+    left_on = "PATID", right_on = "PATID", how = "left"
 ).rename(columns={"sample.ID":"GTID"})
-
-print( df_new_baseline.head() )
 
 # Save the New Baseline (gt_baseline = "Genotyped Baseline")
 gate.Data_Gateway.export(
-    {"phenotype": df_new_baseline},
+    {"phenotype": phenotype},
     extension = "txt",
     sep = " ",
     temp = True
