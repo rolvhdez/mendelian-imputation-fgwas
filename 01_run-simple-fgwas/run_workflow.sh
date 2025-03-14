@@ -1,4 +1,10 @@
 #!/bin/bash
+
+apt-get update
+apt-get install -y git build-essential zlib1g-dev g++
+
+$CURRWD="$PWD"
+
 # Install Rust
 if ! [ -f "$HOME/.rustup/settings.toml" ]; then
     echo "Installing Rustup..."
@@ -6,6 +12,23 @@ if ! [ -f "$HOME/.rustup/settings.toml" ]; then
     . "$HOME/.cargo/env"
 else 
     echo "Rustup is installed."
+fi
+
+# Install QCTools (from source)
+QCTOOL_DIR="/opt/bin/qctool"
+QCTOOL_VER="2.2.0"
+if ! [ -d "$QCTOOL_DIR" ]; then
+    echo "Installing QCTools"
+    mkdir -p "$QCTOOL_DIR"
+    wget https://github.com/gavinband/qctool/archive/refs/tags/v"$QCTOOL_VER".tar.gz -P "$QCTOOL_DIR"
+    tar -xvzf "$QCTOOL_DIR"/v"$QCTOOL_VER".tar.gz -C "$QCTOOL_DIR"
+    rm "$QCTOOL_DIR"/v"$QCTOOL_VER".tar.gz
+    
+    cd "$QCTOOL_DIR"/qctool-"$QCTOOL_VER"
+    sudo ./waf configure
+    sudo ./waf
+    
+    cd "$CURRWD"
 fi
 
 # Create Conda environment
