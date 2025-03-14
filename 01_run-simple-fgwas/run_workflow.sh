@@ -37,7 +37,7 @@ if ! [ -f /tmp/phenotype.txt ]; then
     echo "Creating phenotype file..."
     python phenotype_reconstruct.py
 fi
-    echo "Phenotype created. Check /tmp/pedigree.txt"
+    echo "Phenotype created. Check /tmp/phenotype.txt"
 
 # Run the pedigree reconstruction
 if ! [ -f /tmp/pedigree.txt ]; then
