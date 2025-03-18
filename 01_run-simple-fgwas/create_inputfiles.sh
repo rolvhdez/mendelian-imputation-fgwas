@@ -1,7 +1,5 @@
 #!/bin/bash
 
-$CURRWD="$PWD"
-
 # Install Rust
 if ! [ -f "$HOME/.rustup/settings.toml" ]; then
     echo "Installing Rustup..."
