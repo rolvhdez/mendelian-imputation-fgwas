@@ -34,15 +34,8 @@ echo "Requirements installed."
 cd scripts/
 
 # Run the phenotype reconstruction
-if ! [ -f /tmp/phenotype.txt ]; then
-    echo "Creating phenotype file..."
-    python phenotype_reconstruct.py
+if ! [ -f /tmp/phenotype.txt ] || ! [ -f /tmp/pedigree.txt ]; then
+    echo "Creating input files..."
+    python generate_inputfiles.py
 fi
-    echo "Phenotype created. Check /tmp/phenotype.txt"
-
-# Run the pedigree reconstruction
-if ! [ -f /tmp/pedigree.txt ]; then
-    echo "Running pedigree reconstruction..."
-    python pedigree_reconstruct.py
-fi
-    echo "Pedigree created. Check /tmp/pedigree.txt"
+    echo "Pedigree and phenotype files created. Check /tmp/"
