@@ -36,7 +36,10 @@ fi
 BED="/mnt/project/Data/GSAv2-Chip/data/pVCF/MCPS_Freeze_150.GT_hg38.pVCF"
 
 if ! [ -f "/tmp/chr_22.bed" ];then
-	plink --bfile $BED --chr 22 --make-bed --out /tmp/chr_22
+	# SNIPAR uses separate files for each chromosome
+    for chrom in {1..22}; do
+        plink --bfile $BED --chr ${chrom} --make-bed --out /tmp/chr_${chrom}
+    done
 fi
 
 # Run SNIPAR
@@ -69,4 +72,9 @@ if ! [ -d ./fgwas_output/ ]; then
 	mkdir fgwas_output
 fi
 
-gwas.py $PHEN --bed $BED --pedigree $PED --threads 4 --out ./fgwas_output/
+# Run the FGWAs
+gwas.py $PHEN
+	--bed $BED \
+	--pedigree $PED \
+	--threads 12 \
+	--out ./fgwas_output/height_ \
