@@ -28,6 +28,7 @@ if ! pip freeze | grep -q "^snipar"; then
     echo "Installing required Python packages..."
     pip install --upgrade pip
     pip install snipar==0.0.18 # Young et al. (2023)
+    pip install scikit-learn
 fi
 echo "Requirements installed."
 
