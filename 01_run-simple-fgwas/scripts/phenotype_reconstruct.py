@@ -48,6 +48,10 @@ for col, pos in sorted(pheno_cols_move.items(), key=lambda x: x[1]):
     
 pre_phenotype = pre_phenotype[pheno_cols]
 phenotype = pre_phenotype.drop(["PATID","AGE","MALE","YEAR_RECRUITED","MONTH_RECRUITED","COYOACAN","MARITAL_STATUS"],axis=1)
+phenotype.iloc[:, 2:] = phenotype.iloc[:, 2:].fillna(-9)
+
+# test: just for height (col : 112)
+phenotype = phenotype.iloc[:, [0, 1, 112]]
 
 gate.Data_Gateway.export(
     {"phenotype": phenotype[phenotype["IID"].notnull()]},

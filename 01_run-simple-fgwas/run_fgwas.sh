@@ -69,4 +69,4 @@ if ! [ -d ./fgwas_output/ ]; then
 	mkdir fgwas_output
 fi
 
-gwas.py $PHEN --bed $BED --pedigree $PED --phen_index 111 --threads 4 --out ./fgwas_output
+gwas.py $PHEN --bed $BED --pedigree $PED --threads 4 --out ./fgwas_output/
