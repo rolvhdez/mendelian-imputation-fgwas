@@ -56,12 +56,15 @@ echo "Activating Conda environment '$CONDA_ENV'..."
 eval "$(conda shell.bash hook)"
 conda activate "$CONDA_ENV"
 
-## Install SNIPAR (optional)
+# Install Python packages
 if ! pip freeze | grep -q "^snipar"; then
     echo "Installing required Python packages..."
     pip install --upgrade pip
-    pip install snipar
+#    pip install snipar==0.0.18 # Young et al. (2023)
+    pip install snipar==0.0.20 # Guan et al. (2025)
+    pip install scikit-learn
 fi
+echo "Requirements installed."
 
 ## Run the FGWAS
 PHEN="/tmp/phenotype.txt"

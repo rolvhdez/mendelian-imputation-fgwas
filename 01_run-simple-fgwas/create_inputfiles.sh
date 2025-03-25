@@ -27,14 +27,15 @@ conda activate "$CONDA_ENV"
 if ! pip freeze | grep -q "^snipar"; then
     echo "Installing required Python packages..."
     pip install --upgrade pip
-    pip install snipar==0.0.18 # Young et al. (2023)
+#    pip install snipar==0.0.18 # Young et al. (2023)
+    pip install snipar==0.0.20 # Guan et al. (2025)
     pip install scikit-learn
 fi
 echo "Requirements installed."
 
 # Run the phenotype reconstruction
-if ! [ -f /tmp/phenotype.txt ] || ! [ -f /tmp/pedigree.txt ]; then
-    echo "Creating input files..."
-    python scripts/generate_inputs.py
-fi
-    echo "Pedigree and phenotype files created. Check /tmp/"
+# if ! [ -f /tmp/phenotype.txt ] || ! [ -f /tmp/pedigree.txt ]; then
+#     echo "Creating input files..."
+#     python scripts/generate_inputs.py
+# fi
+#     echo "Pedigree and phenotype files created. Check /tmp/"

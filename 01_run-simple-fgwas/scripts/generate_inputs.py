@@ -10,8 +10,8 @@ import gateway as gate
 
 # Define inputs paths
 input_paths = [
-    "/mnt/project/Data/KING-IBD/king_ibdseg_4th.seg",  # kinship
-    "/mnt/project/Data/Baseline/MCPS BASELINE.csv",  # survey
+    "/mnt/project/Data/KING-IBD/king_ibdseg_4th.seg",  # kinship (file-GkVP8F004Qxf473bpkF4P0pK)
+    "/mnt/project/Data/Baseline/MCPS BASELINE.csv",  # survey (file-GV4X4Vj0gy50pGb6KXK144FX)
 ]
 
 """
@@ -88,20 +88,21 @@ phenotype = baseline.drop(
     axis=1,
 )
 
+# JUST FOR TESTS!!!
+phenotype["BMI"] = phenotype["WEIGHT"] / ( phenotype["HEIGHT"] )**2
+phenotype = phenotype[["FID", "IID", "BMI"]]  # FID, IID, HEIGHT
+
 # Normalize to Inverse Normal Transform (INT)
 from normalization import int_normalization as intnorm
 
 phenotype.iloc[:, 2:] = intnorm(phenotype.iloc[:, 2:])
 
 # Fill NA's as described `here <http://zzz.bwh.harvard.edu/plink/data.shtml#pheno>`
-phenotype.iloc[:, 2:] = phenotype.iloc[:, 2:].fillna(-9) 
+# phenotype.iloc[:, 2:] = phenotype.iloc[:, 2:].fillna(-9) 
 
 # Final adjusments
 phenotype = phenotype[phenotype[["FID", "IID"]].notnull().all(axis=1)]  # filter nulls
 phenotype = phenotype.sort_values(by=["FID", "IID"])  # sort by FID and IID
-
-# JUST FOR TESTS!!!
-phenotype = phenotype.iloc[:, [0, 1, 112]]  # FID, IID, HEIGHT
 
 """
 4. Export files
