@@ -2,7 +2,7 @@
 
 ### IMPORTANT ###
 # This workflow is to run only GSAV2_chip (simple genotype file) data.
-# Make sure tu have run the ./create_inputs.sh script before running this one.
+# Make sure tu have run the ./create_inputfiles.sh script before running this one.
 
 NOTEBOOK_WD="/opt/notebooks"
 PLINK_DIR="$NOTEBOOK_WD/bin/plink"
@@ -42,6 +42,8 @@ if ! [ -f "/tmp/chr_22.bed" ];then
     done
 fi
 
+echo "Genotype data has been succesfully subdivided by autosomal (22) chromosomes."
+
 # Run SNIPAR
 CONDA_ENV="myenv"
 
@@ -76,8 +78,8 @@ if ! [ -d ./fgwas_output/ ]; then
 fi
 
 # Run the FGWAs
-gwas.py $PHEN
+gwas.py $PHEN \
 	--bed $BED \
 	--pedigree $PED \
 	--threads 12 \
-	--out ./fgwas_output/height_ \
+	--out ./fgwas_output/bmi

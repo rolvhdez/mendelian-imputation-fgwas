@@ -7,6 +7,8 @@ import numpy as np
 import pandas as pd
 import os, sys
 import gateway as gate
+from snipar.pedigree import create_pedigree
+from normalization import int_normalization as intnorm
 
 # Define inputs paths
 input_paths = [
@@ -61,8 +63,6 @@ gate.Data_Gateway.export(
 )
 
 # Reconstruct the pedigree
-from snipar.pedigree import create_pedigree
-
 pedigree = create_pedigree(
     king_address="/tmp/kinship.csv",
     agesex_address="/tmp/agesex.csv",
@@ -82,27 +82,18 @@ for col in reversed(cols_to_move):  # Use reversed to maintain the order of cols
     column = baseline.pop(col)
     baseline.insert(0, col, column)
 
-# Create the phenotype file
 phenotype = baseline.drop(
     ["AGE", "MALE", "YEAR_RECRUITED", "MONTH_RECRUITED", "COYOACAN", "MARITAL_STATUS"],
     axis=1,
 )
+phenotype["BMI"] = phenotype["WEIGHT"] / (phenotype["HEIGHT"])**2 # calculate BMI
+phenotype.iloc[:, 2:] = intnorm(phenotype.iloc[:, 2:]) # normalize based on INT
+phenotype.iloc[:, 2:] = phenotype.iloc[:, 2:].fillna("NA") # fill NA's as described `here <https://github.com/AlexTISYoung/snipar/blob/553e7ac1b2d0cecdede013c8907843fd79b1dcf6/snipar/read/phenotype.py#L8>`
+phenotype = phenotype[phenotype[["FID", "IID"]].notnull().all(axis=1)]  # filter non-genotyped individuals
+phenotype = phenotype.sort_values(by=["FID", "IID"]) # sort by FID and IID
 
 # JUST FOR TESTS!!!
-phenotype["BMI"] = phenotype["WEIGHT"] / ( phenotype["HEIGHT"] )**2
-phenotype = phenotype[["FID", "IID", "BMI"]]  # FID, IID, HEIGHT
-
-# Normalize to Inverse Normal Transform (INT)
-from normalization import int_normalization as intnorm
-
-phenotype.iloc[:, 2:] = intnorm(phenotype.iloc[:, 2:])
-
-# Fill NA's as described `here <http://zzz.bwh.harvard.edu/plink/data.shtml#pheno>`
-# phenotype.iloc[:, 2:] = phenotype.iloc[:, 2:].fillna(-9) 
-
-# Final adjusments
-phenotype = phenotype[phenotype[["FID", "IID"]].notnull().all(axis=1)]  # filter nulls
-phenotype = phenotype.sort_values(by=["FID", "IID"])  # sort by FID and IID
+phenotype = phenotype[["FID", "IID", "BMI"]]
 
 """
 4. Export files

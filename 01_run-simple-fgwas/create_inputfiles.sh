@@ -34,8 +34,8 @@ fi
 echo "Requirements installed."
 
 # Run the phenotype reconstruction
-# if ! [ -f /tmp/phenotype.txt ] || ! [ -f /tmp/pedigree.txt ]; then
-#     echo "Creating input files..."
-#     python scripts/generate_inputs.py
-# fi
-#     echo "Pedigree and phenotype files created. Check /tmp/"
+if ! [ -f /tmp/phenotype.txt ] || ! [ -f /tmp/pedigree.txt ]; then
+    echo "Creating input files..."
+    python scripts/generate_inputs.py
+fi
+    echo "Pedigree and phenotype files created. Check /tmp/"
