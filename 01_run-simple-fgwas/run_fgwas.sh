@@ -2,7 +2,7 @@
 
 ### IMPORTANT ###
 # This workflow is to run only GSAV2_chip (simple genotype file) data.
-# Make sure tu have run the ./create_inputs.sh script before running this one.
+# Make sure tu have run the ./create_inputfiles.sh script before running this one.
 
 NOTEBOOK_WD="/opt/notebooks"
 PLINK_DIR="$NOTEBOOK_WD/bin/plink"
@@ -35,9 +35,17 @@ fi
 # Make a subset of the chromosome 22 for GSAv2-Chip
 BED="/mnt/project/Data/GSAv2-Chip/data/pVCF/MCPS_Freeze_150.GT_hg38.pVCF"
 
-if ! [ -f "/tmp/chr_22.bed" ];then
-	plink --bfile $BED --chr 22 --make-bed --out /tmp/chr_22
+if ! [ -f "/tmp/chr_22.bed" ]; then
+    # SNIPAR uses separate files for each chromosome
+    for chrom in {1..22}; do
+        plink --bfile "$BED" --chr "${chrom}" --make-bed --out "/tmp/chr_${chrom}" || {
+            echo "ERROR: PLINK failed for chromosome ${chrom}" >&2
+            exit 1
+        }
+    done
 fi
+
+echo "Genotype data has been succesfully subdivided by autosomal (22) chromosomes."
 
 # Run SNIPAR
 CONDA_ENV="myenv"
@@ -53,20 +61,32 @@ echo "Activating Conda environment '$CONDA_ENV'..."
 eval "$(conda shell.bash hook)"
 conda activate "$CONDA_ENV"
 
-## Install SNIPAR (optional)
+# Install Python packages
 if ! pip freeze | grep -q "^snipar"; then
     echo "Installing required Python packages..."
     pip install --upgrade pip
-    pip install snipar
+#    pip install snipar==0.0.18 # Young et al. (2023)
+    pip install snipar==0.0.20 # Guan et al. (2025)
+    pip install scikit-learn
 fi
+echo "Requirements installed."
 
 ## Run the FGWAS
 PHEN="/tmp/phenotype.txt"
 BED="/tmp/chr_@"
 PED="/tmp/pedigree.txt"
+GWAS="./fgwas_output/gwas_chr@"
 
 if ! [ -d ./fgwas_output/ ]; then
 	mkdir fgwas_output
 fi
 
-gwas.py $PHEN --bed $BED --pedigree $PED --phen_index 111 --threads 4 --out ./fgwas_output
+gwas.py $PHEN \
+	--bed $BED \
+	--pedigree $PED \
+    --chr_range 22 \
+	--threads 12 \
+    --min_maf 0.01 \
+    --max_missing 5 \
+    --no_hdf5_out \
+	--out $GWAS 2>&1 | tee "./fgwas_output/gwas_$(date +'%Y%m%d_%H%M%S').log"
