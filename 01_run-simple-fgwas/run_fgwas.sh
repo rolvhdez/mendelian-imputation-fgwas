@@ -35,10 +35,13 @@ fi
 # Make a subset of the chromosome 22 for GSAv2-Chip
 BED="/mnt/project/Data/GSAv2-Chip/data/pVCF/MCPS_Freeze_150.GT_hg38.pVCF"
 
-if ! [ -f "/tmp/chr_22.bed" ];then
-	# SNIPAR uses separate files for each chromosome
+if ! [ -f "/tmp/chr_22.bed" ]; then
+    # SNIPAR uses separate files for each chromosome
     for chrom in {1..22}; do
-        plink --bfile $BED --chr ${chrom} --make-bed --out /tmp/chr_${chrom}
+        plink --bfile "$BED" --chr "${chrom}" --make-bed --out "/tmp/chr_${chrom}" || {
+            echo "ERROR: PLINK failed for chromosome ${chrom}" >&2
+            exit 1
+        }
     done
 fi
 
@@ -72,14 +75,18 @@ echo "Requirements installed."
 PHEN="/tmp/phenotype.txt"
 BED="/tmp/chr_@"
 PED="/tmp/pedigree.txt"
+GWAS="./fgwas_output/gwas_chr@"
 
 if ! [ -d ./fgwas_output/ ]; then
 	mkdir fgwas_output
 fi
 
-# Run the FGWAs
 gwas.py $PHEN \
 	--bed $BED \
 	--pedigree $PED \
+    --chr_range 22 \
 	--threads 12 \
-	--out ./fgwas_output/bmi
+    --min_maf 0.01 \
+    --max_missing 5 \
+    --no_hdf5_out \
+	--out $GWAS 2>&1 | tee "./fgwas_output/gwas_$(date +'%Y%m%d_%H%M%S').log"
