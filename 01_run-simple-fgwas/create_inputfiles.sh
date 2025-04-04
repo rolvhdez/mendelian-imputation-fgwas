@@ -27,11 +27,15 @@ conda activate "$CONDA_ENV"
 if ! pip freeze | grep -q "^snipar"; then
     echo "Installing required Python packages..."
     pip install --upgrade pip
-#    pip install snipar==0.0.18 # Young et al. (2023)
     pip install snipar==0.0.20 # Guan et al. (2025)
     pip install scikit-learn
 fi
 echo "Requirements installed."
+
+# Filter the Baseline Survey for BMI
+if ! [ -f /tmp/FILTER_BASELINE.csv ]; then
+    Rscript scripts/filter_baseline.r
+fi
 
 # Run the phenotype reconstruction
 if ! [ -f /tmp/phenotype.txt ] || ! [ -f /tmp/pedigree.txt ]; then

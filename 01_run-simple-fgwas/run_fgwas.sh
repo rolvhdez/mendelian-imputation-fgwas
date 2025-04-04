@@ -4,7 +4,7 @@
 # This workflow is to run only GSAV2_chip (simple genotype file) data.
 # Make sure to have run the ./create_inputfiles.sh script before running this one.
 
-set -euo pipefail  # Add this for better error handling
+set -euo pipefail
 
 NOTEBOOK_WD="/opt/notebooks"
 PLINK_DIR="$NOTEBOOK_WD/bin/plink"
@@ -52,7 +52,7 @@ if ! [ -f "/tmp/chr_22.bed" ]; then
     {
         for chrom in {1..22}; do
             plink --bfile "$BED" --chr "${chrom}" \
-            --maf 0.01 --geno 0.1 \
+            --maf 0.05 --geno 0.1 \
             --snps-only \
             --make-bed --out "/tmp/chr_${chrom}" 
         done 
@@ -87,8 +87,7 @@ GWAS_RESULTS="${OUTPUT}/gwas_chr@"
 
 {
     gwas.py "$PHEN" --bed "$BED_PATTERN" --pedigree "$PED" \
-        --chr_range 22 \
-        --cpus 12 --min_maf 0.01 --max_missing 5 \
+        --cpus 16 --min_maf 0.01 --max_missing 5 \
         --no_hdf5_out \
         --out "$GWAS_RESULTS"
 } 2>&1 | tee -a "${OUTPUT}/fgwas_$(date +'%Y%m%d_%H%M%S').log"
