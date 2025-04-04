@@ -10,7 +10,6 @@ NOTEBOOK_WD="/opt/notebooks"
 PLINK_DIR="$NOTEBOOK_WD/bin/plink"
 KIN="/tmp/kinship.csv"
 PHEN="/tmp/phenotype.txt"
-BED="/tmp/chr_@"  # This gets redefined later - consider removing or keeping consistent
 PED="/tmp/pedigree.txt"
 OUTPUT="output_bmi/"
 DXOUTPUT="/Users/Roberto/results/fgwas_bmi_$(date +'%Y%m%d_%H%M%S')/"
@@ -87,7 +86,8 @@ GWAS_RESULTS="${OUTPUT}/gwas_chr@"
 
 {
     gwas.py "$PHEN" --bed "$BED_PATTERN" --pedigree "$PED" \
-        --cpus 16 --min_maf 0.01 --max_missing 5 \
+        --chr_range 22 \
+        --cpus 12 --min_maf 0.01 --max_missing 5 \
         --no_hdf5_out \
         --out "$GWAS_RESULTS"
 } 2>&1 | tee -a "${OUTPUT}/fgwas_$(date +'%Y%m%d_%H%M%S').log"
