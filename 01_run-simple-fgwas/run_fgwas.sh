@@ -53,6 +53,7 @@ if ! [ -f "/tmp/chr_22.bed" ]; then
         for chrom in {1..22}; do
             plink --bfile "$BED" --chr "${chrom}" \
             --maf 0.01 --geno 0.1 \
+            --snps-only \
             --make-bed --out "/tmp/chr_${chrom}" 
         done 
     } 2>&1 | tee -a "${OUTPUT}/plink_$(date +'%Y%m%d_%H%M%S').log"
