@@ -77,7 +77,7 @@ def main():
 
     # Export temporary files
     kinship_path = f"{args.output_prefix}_kinship"
-    agesex_path = f"{args.output_prefix}_kinship"
+    agesex_path = f"{args.output_prefix}_agesex"
     gate.Data_Gateway.export(
         {
             kinship_path : kinship[["FID1", "ID1", "FID2", "ID2", "InfType"]], 
