@@ -29,7 +29,7 @@ class Spinner:
         self.running = False
         if self.thread:
             self.thread.join()
-        sys.stdout.write(f"\r{self.message} Done!     \n")
+        sys.stdout.write(f"\r{self.message} Done! \n")
         sys.stdout.flush()
 
 class Data_Gateway:

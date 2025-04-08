@@ -2,9 +2,14 @@
 set -euo pipefail
 
 # Define inputs
+# Output directory
+OUTPUT_DIR="/tmp/job_output/"
+mkdir -p $OUTPUT_DIR
+
 ## Default inputs
 OUTPUT_PREFIX="$(date +'%Y%m%d_%H%M%S')"
-DXOUTPUT="/Users/Roberto/results/${OUTPUT_PREFIX}_FGWAS/"
+DXOUTPUT="/Users/Roberto/results/fgwas/${OUTPUT_PREFIX}/"
+UPLOAD="no"
 MAF=0.05
 MISSING=0.02
 CHR_RANGE=22
@@ -23,14 +28,14 @@ while [[ "$#" -gt 0 ]]; do
         --chr_range) CHR_RANGE="$2"; shift ;;
         --cpu) CPU="$2"; shift ;;
         --dx-output) DXOUTPUT="$2"; shift ;;
+        --upload) UPLOAD="$2"; shift ;;
         *) echo "Unknown parameter: $1"; exit 1 ;;
     esac
     shift
 done
 
-# Output directory
-OUTPUT_DIR="/tmp/job_output/"
-mkdir -p $OUTPUT_DIR
+# Whole output with prefix
+OUTPUT="${OUTPUT_DIR%/}/${OUTPUT_PREFIX}"
 
 # Initialize Conda environment
 CONDA_ENV="snipar_env"
@@ -45,7 +50,7 @@ fi
 conda activate "$CONDA_ENV";
 
 # Filter the Baseline Survey for BMI
-QCBASE="/tmp/FILTER_BASELINE.csv"
+QCBASE="${OUTPUT_DIR%/}/FILTER_BASELINE.csv"
 if ! [ -f "$QCBASE" ]; then
     echo "Filtering baseline..."
     Rscript resources/filter_baseline.r "$BASE" "$QCBASE"
@@ -53,20 +58,20 @@ fi
 echo "Baseline filtered..."
 
 # Run the phenotype reconstruction
-PHEN="/tmp/${OUTPUT_PREFIX}_phenotype.txt"
-PED="/tmp/${OUTPUT_PREFIX}_pedigree.txt"
+PHEN="${OUTPUT_DIR%/}/phenotype.txt"
+PED="${OUTPUT_DIR%/}/pedigree.txt"
 if ! [ -f "$PHEN" ] || ! [ -f "$PED" ]; then
     {
         python resources/generate_inputs.py \
             --kinship "$KING" --baseline "$QCBASE" \
-            --output-prefix "$OUTPUT_PREFIX"
-    } 2>&1 | tee -a "${OUTPUT_DIR}/${OUTPUT_PREFIX}_inputs.log"
+            --out "$OUTPUT_DIR"
+    } 2>&1 | tee -a "${OUTPUT}_inputs.log"
 fi
 echo "Phenotype and pedigree files created."
-echo "Check /tmp/"
+echo "Check ${OUTPUT_DIR}"
 
 # PLINK: QC genotype data (Ziyatdinov et al., 2023)
-QCBED="/tmp/${OUTPUT_PREFIX}_genotype"
+QCBED="${OUTPUT}_geno"
 
 if compgen -G "${QCBED}.*" > /dev/null; then
     echo "QC genotype files already exist. Skipping QC step..."
@@ -80,34 +85,37 @@ else
             --geno 0.02 --mac 1 \
             --hwe 1e-30 \
             --make-bed --out "$QCBED"
-    } 2>&1 | tee -a "${OUTPUT_DIR}/${OUTPUT_PREFIX}_qc_plink.log"
+    } 2>&1 | tee -a "${OUTPUT}_qc_plink.log"
 fi
 
 # PLINK: Segment QC chromosomes
-if ! compgen -G "/tmp/chr_22.*" > /dev/null; then
+SEGMENT_DIR="${OUTPUT_DIR%/}/segments"
+if ! [ -d "$SEGMENT_DIR" ] > /dev/null; then
+    mkdir -p "$SEGMENT_DIR"
     echo "Segmenting ${QCBED}..."
     {
         for chrom in $(seq "${CHR_RANGE}"); do
-            plink --bfile "$QCBED" --chr "${chrom}" --make-bed --out "/tmp/chr_${chrom}"
+            plink --bfile "$QCBED" --chr "${chrom}" --make-bed --out "${SEGMENT_DIR}/${OUTPUT_PREFIX}_chr_${chrom}"
         done 
-    } 2>&1 | tee -a "${OUTPUT_DIR}/${OUTPUT_PREFIX}_segment_plink.log"
+    } 2>&1 | tee -a "${OUTPUT}_segment_plink.log"
 fi
 
 # SNIPAR: Run the FGWAS
-BED_PATTERN="/tmp/chr_@"
-GWAS_RESULTS="${OUTPUT_DIR}/${OUTPUT_PREFIX}_chr@"
-
+BED_PATTERN="${SEGMENT_DIR}/${OUTPUT_PREFIX}_chr_@"
 echo "Running FGWAS..."
 {
     gwas.py "$PHEN" --bed "$BED_PATTERN" --pedigree "$PED" \
         --chr_range "$CHR_RANGE" \
         --cpus "$CPU" --min_maf "$MAF" --max_missing "$MISSING" \
-        --no_hdf5_out --out "$GWAS_RESULTS"
-} 2>&1 | tee -a "${OUTPUT_DIR}/${OUTPUT_PREFIX}_fgwas.log"
+        --no_hdf5_out --out "$OUTPUT"
+} 2>&1 | tee -a "${OUTPUT}_fgwas.log"
 
 conda deactivate
 
 # Copy and upload results
-# cp "${PHEN}" "${PED}" "${OUTPUT_DIR}"
-# dx mkdir -p "${DXOUTPUT}"
-# dx upload --recursive "${OUTPUT_DIR}" --brief --path "${DXOUTPUT}"
+if [ "$UPLOAD" == "yes" ]; then
+    echo "Uploading results to ${DXOUTPUT}..."
+    dx upload "${OUTPUT_DIR%/}/*.{csv,txt,log,gz}$" --brief --path "${DXOUTPUT}"
+else
+    echo "Results are available in ${OUTPUT_DIR}"
+fi

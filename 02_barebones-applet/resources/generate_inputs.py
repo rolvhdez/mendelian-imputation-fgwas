@@ -29,10 +29,10 @@ def main():
     )
 
     parser.add_argument(
-        '--output-prefix',
+        '--out',
         type=str,
         default='output',
-        help='Prefix for output files'
+        help='Path to output directory'
     )
 
     args = parser.parse_args()
@@ -76,8 +76,8 @@ def main():
     )
 
     # Export temporary files
-    kinship_path = f"{args.output_prefix}_kinship"
-    agesex_path = f"{args.output_prefix}_agesex"
+    kinship_path = f"{args.out}kinship"
+    agesex_path = f"{args.out}agesex"
     gate.Data_Gateway.export(
         {
             kinship_path : kinship[["FID1", "ID1", "FID2", "ID2", "InfType"]], 
@@ -88,10 +88,10 @@ def main():
         temp=True,
     )
 
-    # Reconstruct the pedigree
+    print("Reconstructing pedigree...")
     pedigree = create_pedigree(
-        king_address=f"/tmp/{kinship_path}.csv",
-        agesex_address=f"/tmp/{agesex_path}.csv",
+        king_address=f"{kinship_path}.csv",
+        agesex_address=f"{agesex_path}.csv",
     )
 
     """
@@ -123,8 +123,8 @@ def main():
     phenotype = phenotype[["FID","IID","BMI"]]
 
     # Export
-    ped_path = f"{args.output_prefix}_pedigree"
-    phe_path = f"{args.output_prefix}_phenotype"
+    ped_path = f"{args.out}pedigree"
+    phe_path = f"{args.out}phenotype"
     gate.Data_Gateway.export(
         {
             ped_path : pedigree,
