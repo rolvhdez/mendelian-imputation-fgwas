@@ -1,4 +1,1 @@
-snipar==0.0.20 # Guan et al. (2025); last release: 2025-03-14
-scikit-learn==1.6.1 # newest release: 2025-01-10
-argparse==1.4.0 # last release: 2015-09-12
-pandas==2.2.3 # last release: 2024-09-20
+snipar==0.0.20

@@ -1,5 +1,5 @@
 SHELL=/bin/bash -e -x -o pipefail
-PLINK_DIR="/opt/notebooks/bin/plink"
+PLINK_DIR="${HOME}/bin/plink"
 VERSION=0.0.1
 
 .PHONY: all install-plink clean
@@ -7,7 +7,7 @@ all: install-dependencies install-plink install-rustup
 
 install-dependencies:
 	apt-get update -y
-	apt-get -y install build-essential git zlib1g zlib1g-dev bzip2 libbz2-dev liblzma-dev wget python python-dev
+	apt-get -y install build-essential git zlib1g zlib1g-dev bzip2 libbz2-dev liblzma-dev wget
 
 install-rustup:
 	curl -sSf https://sh.rustup.rs | sh -s -- -y
