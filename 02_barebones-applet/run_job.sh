@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euo pipefail
+# set -euo pipefail
 
 # Define inputs
 # Output directory
@@ -9,21 +9,15 @@ mkdir -p $OUTPUT_DIR
 ## Default inputs
 OUTPUT_PREFIX="$(date +'%Y%m%d_%H%M%S')"
 UPLOAD="no"
-MAF=0.05
-MISSING=0.02
 CHR_RANGE=22
 CPU=4
 
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         -p|--prefix) OUTPUT_PREFIX="$2"; shift ;;
-        # File inputs
         --phenotype) BASE="$2"; shift ;;
         --kinship) KING="$2"; shift ;;
         --genotype) BED="$2"; shift ;;
-        # Filters
-        --maf) MAF="$2"; shift ;;
-        --missing) MISSING="$2"; shift ;;
         --chr_range) CHR_RANGE="$2"; shift ;;
         --cpu) CPU="$2"; shift ;;
         --upload) UPLOAD="$2"; shift ;;
@@ -34,7 +28,7 @@ done
 
 # Make the directory
 DXOUTPUT="/Users/Roberto/results/fgwas/${OUTPUT_PREFIX}/"
-dx mkdir -p "${DXOUTPUT}"
+if [[ "$UPLOAD" == "yes" ]]; then dx mkdir -p "${DXOUTPUT}"; fi
 
 # Whole output with prefix
 OUTPUT="${OUTPUT_DIR%/}/${OUTPUT_PREFIX}"
@@ -74,15 +68,34 @@ echo "Check ${OUTPUT_DIR}"
 
 # PLINK: Segment QC chromosomes
 SEGMENT_DIR="${OUTPUT_DIR%/}/segments"
-if ! [ -d "$SEGMENT_DIR" ] > /dev/null; then
-    mkdir -p "$SEGMENT_DIR"
-    # echo "Segmenting ${QCBED}..."
+# if ! [ -d "$SEGMENT_DIR" ] > /dev/null; then
+#     mkdir -p "$SEGMENT_DIR"
+#     # echo "Segmenting ${QCBED}..."
+#     echo "Segmenting ${BED}..."
+#     {
+#         for chrom in $(seq "${CHR_RANGE}"); do
+#             plink --bfile "$BED" --chr "${chrom}" --make-bed --out "${SEGMENT_DIR}/${OUTPUT_PREFIX}_chr_${chrom}"
+#         done 
+#     } 2>&1 | tee -a "${OUTPUT}_segment_plink.log"
+# fi
+
+if ! [[ -d "$SEGMENT_DIR" ]]; then mkdir -p "$SEGMENT_DIR"; fi
+if ! [[ -f "${SEGMENT_DIR%/}/*" ]]; then
     echo "Segmenting ${BED}..."
-    {
-        for chrom in $(seq "${CHR_RANGE}"); do
-            plink --bfile "$BED" --chr "${chrom}" --make-bed --out "${SEGMENT_DIR}/${OUTPUT_PREFIX}_chr_${chrom}"
-        done 
-    } 2>&1 | tee -a "${OUTPUT}_segment_plink.log"
+    for arg in $CHR_RANGE; do
+        if [[ $arg == *-* ]]; then
+            # If the argument contains a dash, it's a range
+            chr_start="${arg%-*}"
+            chr_end="${arg#*-}"
+            for chrom in $(seq "$chr_start" "$chr_end"); do
+                echo "Segmenting ${BED}..."
+                plink --bfile "$BED" --chr "${chrom}" --make-bed --out "${SEGMENT_DIR}/${OUTPUT_PREFIX}_chr_${chrom}"
+            done
+        else 
+            # If it doesn't contain a dash, it's a single chromosome
+            plink --bfile "$BED" --chr "${arg}" --make-bed --out "${SEGMENT_DIR}/${OUTPUT_PREFIX}_chr_${arg}"
+        fi
+    done
 fi
 
 # SNIPAR: Run the FGWAS
@@ -100,6 +113,8 @@ conda deactivate
 if [ "$UPLOAD" == "yes" ]; then
     echo "Uploading results to ${DXOUTPUT}..."
     dx upload "${OUTPUT_DIR%/}/*.{csv,txt,log,gz}" --brief --path "${DXOUTPUT}"
+    exit 0
 else
     echo "Results are available in ${OUTPUT_DIR}"
+    exit 0
 fi
