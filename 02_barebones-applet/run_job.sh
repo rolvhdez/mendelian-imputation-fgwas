@@ -3,8 +3,7 @@
 
 # Define inputs
 # Output directory
-OUTPUT_DIR="/tmp/job_output/"
-mkdir -p $OUTPUT_DIR
+OUTPUT_DIR="/tmp/job_output/"; mkdir -p $OUTPUT_DIR
 
 ## Default inputs
 OUTPUT_PREFIX="$(date +'%Y%m%d_%H%M%S')"
@@ -62,25 +61,14 @@ if ! [ -f "$PHEN" ] || ! [ -f "$PED" ]; then
             --kinship "$KING" --baseline "$QCBASE" \
             --out "$OUTPUT_DIR"
     } 2>&1 | tee -a "${OUTPUT}_inputs.log"
+    echo "Phenotype and pedigree files generated in ${OUTPUT_DIR}"
+else
+    echo "Phenotype and pedigree files already exist in ${OUTPUT_DIR}"
 fi
-echo "Phenotype and pedigree files created."
-echo "Check ${OUTPUT_DIR}"
 
 # PLINK: Segment QC chromosomes
-SEGMENT_DIR="${OUTPUT_DIR%/}/segments"
-# if ! [ -d "$SEGMENT_DIR" ] > /dev/null; then
-#     mkdir -p "$SEGMENT_DIR"
-#     # echo "Segmenting ${QCBED}..."
-#     echo "Segmenting ${BED}..."
-#     {
-#         for chrom in $(seq "${CHR_RANGE}"); do
-#             plink --bfile "$BED" --chr "${chrom}" --make-bed --out "${SEGMENT_DIR}/${OUTPUT_PREFIX}_chr_${chrom}"
-#         done 
-#     } 2>&1 | tee -a "${OUTPUT}_segment_plink.log"
-# fi
-
-if ! [[ -d "$SEGMENT_DIR" ]]; then mkdir -p "$SEGMENT_DIR"; fi
-if ! [[ -f "${SEGMENT_DIR%/}/*" ]]; then
+SEGMENT_DIR="${OUTPUT_DIR%/}/chr_segments"; mkdir -p "$SEGMENT_DIR"
+if ! find "${SEGMENT_DIR%/}" -type f | grep -q .; then
     echo "Segmenting ${BED}..."
     for arg in $CHR_RANGE; do
         if [[ $arg == *-* ]]; then
@@ -96,16 +84,74 @@ if ! [[ -f "${SEGMENT_DIR%/}/*" ]]; then
             plink --bfile "$BED" --chr "${arg}" --make-bed --out "${SEGMENT_DIR}/${OUTPUT_PREFIX}_chr_${arg}"
         fi
     done
+else
+    echo "Segmented files already exist in ${SEGMENT_DIR}"
 fi
 
-# SNIPAR: Run the FGWAS
-BED_PATTERN="${SEGMENT_DIR}/${OUTPUT_PREFIX}_chr_@"
-echo "Running FGWAS..."
+#-------
+# SNIPAR
+#-------
+PATTERN="${OUTPUT_PREFIX}_chr_@"
+
+SUMSTATS_DIR="${OUTPUT_DIR%/}/sumstats"; mkdir -p "$SUMSTATS_DIR"
+BED_PATTERN="${SEGMENT_DIR}/${PATTERN}"
+FGWAS_PATTERN="${SUMSTATS_DIR}/${PATTERN}"
+
+IBD_DIR="${OUTPUT_DIR%/}/ibd_segments"; mkdir -p "$IBD_DIR"
+IBD_PATTERN="${IBD_DIR}/${PATTERN}"
+
+IMP_DIR="${OUTPUT_DIR%/}/imputed_genotypes"; mkdir -p "$IMP_DIR"
+IMP_PATTERN="${IMP_DIR}/${PATTERN}"
+
+# Infere IBD segments
+if ! find "$IBD_DIR" -type f | grep -q .; then # Check if files exists
+    {
+        ibd.py \
+            --bed "$BED_PATTERN" \
+            --pedigree "$PED" \
+            --chr_range "$CHR_RANGE" \
+            --batches 1 --threads 36 \
+            --ld_out \
+            --out "$IBD_PATTERN"
+    } > "${OUTPUT}_ibd.log" 2>&1 || {
+        echo "IBD inference failed. Please check the logs."
+        exit 1
+    }
+else
+    echo "IBD segments already exist in ${IBD_DIR}"
+fi
+
+# Impute parental genotypes
+if ! find "$IMP_DIR" -type f | grep -q .; then # Check if files exists
+    {
+        impute.py \
+            --bed "$BED_PATTERN" \
+            --pedigree "$PED" \
+            --chr_range "$CHR_RANGE" \
+            --ibd "${IBD_PATTERN}.ibd" \
+            --processes 4 --chunks 8 --threads 36 \
+            --out "$IMP_PATTERN"
+    } > "${OUTPUT}_imputation.log" 2>&1 || {
+        echo "Imputation failed. Please check the logs."
+        exit 1
+    }
+else
+    echo "Imputed genotypes already exist in ${IMP_DIR}"
+fi
+
+# Run the FGWAS
 {
-    gwas.py "$PHEN" --bed "$BED_PATTERN" --pedigree "$PED" \
-        --chr_range "$CHR_RANGE" --cpus "$CPU" \
-        --no_hdf5_out --out "$OUTPUT"
-} 2>&1 | tee -a "${OUTPUT}_fgwas.log"
+    gwas.py --robust "$PHEN" \
+        --bed "$BED_PATTERN" \
+        --pedigree "$PED" \
+        --imp "$IMP_PATTERN" \
+        --chr_range "$CHR_RANGE" \
+        --cpu "$CPU" --threads 12 \
+        --out "$FGWAS_PATTERN"
+} > "${OUTPUT}_fgwas.log" 2>&1 || {
+    echo "FGWAS failed. Please check the logs."
+    exit 1
+}
 
 conda deactivate
 
