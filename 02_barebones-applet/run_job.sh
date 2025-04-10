@@ -1,13 +1,7 @@
 #!/bin/bash
-# set -euo pipefail
 
-# Define inputs
-# Output directory
-OUTPUT_DIR="/tmp/job_output/"; mkdir -p $OUTPUT_DIR
-
-## Default inputs
+# Default inputs
 OUTPUT_PREFIX="$(date +'%Y%m%d_%H%M%S')"
-UPLOAD="no"
 CHR_RANGE=22
 CPU=4
 
@@ -25,12 +19,64 @@ while [[ "$#" -gt 0 ]]; do
     shift
 done
 
+read -p "Run with imputation? (y/N): " imp_answer
+case $imp_answer in
+    [Yy]*) MAKE_IMPUTATION=true ;;
+    *) MAKE_IMPUTATION=false ;;
+esac
+
+read -p "Upload results to DNAnexus (${DXOUTPUT})? (y/N): " imp_answer
+case $imp_answer in
+    [Yy]*) UPLOAD=true ;;
+    *) UPLOAD=false ;;
+esac
+
 # Make the directory
-DXOUTPUT="/Users/Roberto/results/fgwas/${OUTPUT_PREFIX}/"
-if [[ "$UPLOAD" == "yes" ]]; then dx mkdir -p "${DXOUTPUT}"; fi
+if $UPLOAD; then 
+    DXOUTPUT="/Users/Roberto/results/fgwas/${OUTPUT_PREFIX}/"
+    dx mkdir -p "${DXOUTPUT}"
+fi
 
 # Whole output with prefix
 OUTPUT="${OUTPUT_DIR%/}/${OUTPUT_PREFIX}"
+
+# Output directories
+OUTPUT_DIR="/tmp/job_output/"; mkdir -p $OUTPUT_DIR
+SEGMENT_DIR="${OUTPUT_DIR%/}/chr_segments"; mkdir -p "$SEGMENT_DIR"
+SUMSTATS_DIR="${OUTPUT_DIR%/}/sumstats"; mkdir -p "$SUMSTATS_DIR"
+
+PATTERN="${OUTPUT_PREFIX}_chr_@"
+BED_PATTERN="${SEGMENT_DIR}/${PATTERN}"
+SUMSTATS_PATTERN="${SUMSTATS_DIR}/${PATTERN}"
+
+if $MAKE_IMPUTATION; then
+    IBD_DIR="${OUTPUT_DIR%/}/ibd_segments"; mkdir -p "$IBD_DIR"
+    IMP_DIR="${OUTPUT_DIR%/}/imputed_genotypes"; mkdir -p "$IMP_DIR"
+
+    IBD_PATTERN="${IBD_DIR}/${PATTERN}"
+    IMP_PATTERN="${IMP_DIR}/${PATTERN}"
+fi
+
+# Declare SNIPAR functions
+function snipar_ibd {
+    ibd.py \
+        --bed "$1" \
+        --pedigree "$2" \
+        --chr_range "$3" \
+        --batches 1 --threads 12 \
+        --ld_out \
+        --out "$IBD_PATTERN"
+}
+function snipar_impute {
+    impute.py \
+        --bed "$1" \
+        --pedigree "$2" \
+        --chr_range "$3" \
+        --ibd "$4" \
+        --processes 4 --chunks 8 --threads 12 \
+        --out "$IMP_PATTERN"
+}
+
 
 # Initialize Conda environment
 CONDA_ENV="snipar_env"
@@ -67,7 +113,6 @@ else
 fi
 
 # PLINK: Segment QC chromosomes
-SEGMENT_DIR="${OUTPUT_DIR%/}/chr_segments"; mkdir -p "$SEGMENT_DIR"
 if ! find "${SEGMENT_DIR%/}" -type f | grep -q .; then
     echo "Segmenting ${BED}..."
     for arg in $CHR_RANGE; do
@@ -88,77 +133,52 @@ else
     echo "Segmented files already exist in ${SEGMENT_DIR}"
 fi
 
-#-------
-# SNIPAR
-#-------
-PATTERN="${OUTPUT_PREFIX}_chr_@"
-
-SUMSTATS_DIR="${OUTPUT_DIR%/}/sumstats"; mkdir -p "$SUMSTATS_DIR"
-BED_PATTERN="${SEGMENT_DIR}/${PATTERN}"
-FGWAS_PATTERN="${SUMSTATS_DIR}/${PATTERN}"
-
-IBD_DIR="${OUTPUT_DIR%/}/ibd_segments"; mkdir -p "$IBD_DIR"
-IBD_PATTERN="${IBD_DIR}/${PATTERN}"
-
-IMP_DIR="${OUTPUT_DIR%/}/imputed_genotypes"; mkdir -p "$IMP_DIR"
-IMP_PATTERN="${IMP_DIR}/${PATTERN}"
-
-# Infere IBD segments
-if ! find "$IBD_DIR" -type f | grep -q .; then # Check if files exists
-    {
-        ibd.py \
-            --bed "$BED_PATTERN" \
-            --pedigree "$PED" \
-            --chr_range "$CHR_RANGE" \
-            --batches 1 --threads 36 \
-            --ld_out \
-            --out "$IBD_PATTERN"
-    } > "${OUTPUT}_ibd.log" 2>&1 || {
-        echo "IBD inference failed. Please check the logs."
-        exit 1
-    }
-else
-    echo "IBD segments already exist in ${IBD_DIR}"
+if $MAKE_IMPUTATION; then
+    # Make IBD inference based on sibship
+    if ! find "$IBD_DIR" -type f | grep -q .; then # Check if files exists
+        snipar_ibd "$BED_PATTERN" "$PED" "$CHR_RANGE" 2>&1 | tee "${OUTPUT}_ibd.log" || {
+            echo "IBD inference failed. Please check the logs."
+            exit 1
+        }
+    fi
+    # Impute parental genotypes based on IBD
+    if ! find "$IMP_DIR" -type f | grep -q .; then # Check if files exists
+        snipar_impute "$BED_PATTERN" "$PED" "$CHR_RANGE" "$IBD_PATTERN" 2>&1 | tee "${OUTPUT}_imputation.log" || {
+            echo "Imputation failed. Please check the logs."
+            exit 1
+        }
+    else
+        echo "Imputed genotypes already exist in ${IMP_DIR}"
+    fi
 fi
 
-# Impute parental genotypes
-if ! find "$IMP_DIR" -type f | grep -q .; then # Check if files exists
-    {
-        impute.py \
-            --bed "$BED_PATTERN" \
-            --pedigree "$PED" \
-            --chr_range "$CHR_RANGE" \
-            --ibd "${IBD_PATTERN}.ibd" \
-            --processes 4 --chunks 8 --threads 36 \
-            --out "$IMP_PATTERN"
-    } > "${OUTPUT}_imputation.log" 2>&1 || {
-        echo "Imputation failed. Please check the logs."
-        exit 1
-    }
-else
-    echo "Imputed genotypes already exist in ${IMP_DIR}"
+# Base command for FGWAS
+fgwas=(
+    gwas.py "$PHEN"
+    --bed "$BED_PATTERN"
+    --pedigree "$PED"
+    --chr_range "$CHR_RANGE"
+    --cpu "$CPU" --threads 12
+    --out "$SUMSTATS_PATTERN"
+)
+
+# Conditionally add the imputation flags based on the user input
+if $MAKE_IMPUTATION; then
+    fgwas+=(--impute "$IMP_PATTERN" --robust)
 fi
 
 # Run the FGWAS
-{
-    gwas.py --robust "$PHEN" \
-        --bed "$BED_PATTERN" \
-        --pedigree "$PED" \
-        --imp "$IMP_PATTERN" \
-        --chr_range "$CHR_RANGE" \
-        --cpu "$CPU" --threads 12 \
-        --out "$FGWAS_PATTERN"
-} > "${OUTPUT}_fgwas.log" 2>&1 || {
-    echo "FGWAS failed. Please check the logs."
-    exit 1
-}
+echo "Running FGWAS..."
+"${fgwas[@]}" 2>&1 | tee "${OUTPUT}_fgwas.log" || echo "FGWAS failed. Please check the logs." && exit 1
 
-conda deactivate
-
-# Copy and upload results
-if [ "$UPLOAD" == "yes" ]; then
+# Upload results to DNAnexus
+if $UPLOAD; then
     echo "Uploading results to ${DXOUTPUT}..."
-    dx upload "${OUTPUT_DIR%/}/*.{csv,txt,log,gz}" --brief --path "${DXOUTPUT}"
+    for file in "${OUTPUT_DIR%/}"/*.{csv,txt,log,gz}; do
+        if [ -f "$file" ]; then
+            dx upload "$file" --brief --path "${DXOUTPUT}"
+        fi
+    done
     exit 0
 else
     echo "Results are available in ${OUTPUT_DIR}"
