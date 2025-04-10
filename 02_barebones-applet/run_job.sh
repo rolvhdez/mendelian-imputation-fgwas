@@ -1,5 +1,15 @@
 #!/bin/bash
 
+# Initialize Conda environment
+CONDA_ENV="snipar_env"
+eval "$(conda shell.bash hook)"
+if ! conda info --envs | grep -q $CONDA_ENV; then
+    conda create -n "$CONDA_ENV" python=3.9 --yes
+    pip install --upgrade pip
+    pip install -r snipar==0.0.20 dxpy
+fi
+conda activate "$CONDA_ENV";
+
 # Default inputs
 OUTPUT_PREFIX="$(date +'%Y%m%d_%H%M%S')"
 CHR_RANGE=22
@@ -25,20 +35,14 @@ case $imp_answer in
     *) MAKE_IMPUTATION=false ;;
 esac
 
+DXOUTPUT="/Users/Roberto/results/fgwas/${OUTPUT_PREFIX}/"
 read -p "Upload results to DNAnexus (${DXOUTPUT})? (y/N): " imp_answer
 case $imp_answer in
     [Yy]*) UPLOAD=true ;;
     *) UPLOAD=false ;;
 esac
-
-# Make the directory
-if $UPLOAD; then 
-    DXOUTPUT="/Users/Roberto/results/fgwas/${OUTPUT_PREFIX}/"
-    dx mkdir -p "${DXOUTPUT}"
-fi
-
-# Whole output with prefix
-OUTPUT="${OUTPUT_DIR%/}/${OUTPUT_PREFIX}"
+# Make the DNAnexus directory
+if $UPLOAD; then dx mkdir -p "${DXOUTPUT}"; fi
 
 # Output directories
 OUTPUT_DIR="/tmp/job_output/"; mkdir -p $OUTPUT_DIR
@@ -56,6 +60,9 @@ if $MAKE_IMPUTATION; then
     IBD_PATTERN="${IBD_DIR}/${PATTERN}"
     IMP_PATTERN="${IMP_DIR}/${PATTERN}"
 fi
+
+# Whole output with prefix
+OUTPUT="${OUTPUT_DIR%/}/${OUTPUT_PREFIX}"
 
 # Declare SNIPAR functions
 function snipar_ibd {
@@ -77,18 +84,6 @@ function snipar_impute {
         --out "$IMP_PATTERN"
 }
 
-
-# Initialize Conda environment
-CONDA_ENV="snipar_env"
-eval "$(conda shell.bash hook)"
-
-if ! conda info --envs | grep -q $CONDA_ENV; then
-    conda create -n "$CONDA_ENV" python=3.9 --yes
-    pip install --upgrade pip
-    pip install -r resources/requirements.txt
-fi
-
-conda activate "$CONDA_ENV";
 
 # Filter the Baseline Survey for BMI
 QCBASE="${OUTPUT_DIR%/}/FILTER_BASELINE.csv"
