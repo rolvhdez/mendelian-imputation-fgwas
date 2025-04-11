@@ -6,13 +6,13 @@ eval "$(conda shell.bash hook)"
 if ! conda info --envs | grep -q $CONDA_ENV; then
     conda create -n "$CONDA_ENV" python=3.9 --yes
     pip install --upgrade pip
-    pip install -r snipar==0.0.20 dxpy
+    pip install -r snipar dxpy
 fi
 conda activate "$CONDA_ENV";
 
 # Default inputs
 OUTPUT_PREFIX="$(date +'%Y%m%d_%H%M%S')"
-CHR_RANGE=22
+CHR_RANGE="1-22"
 CPU=4
 
 while [[ "$#" -gt 0 ]]; do
@@ -23,7 +23,6 @@ while [[ "$#" -gt 0 ]]; do
         --genotype) BED="$2"; shift ;;
         --chr_range) CHR_RANGE="$2"; shift ;;
         --cpu) CPU="$2"; shift ;;
-        --upload) UPLOAD="$2"; shift ;;
         *) echo "Unknown parameter: $1"; exit 1 ;;
     esac
     shift
@@ -41,6 +40,7 @@ case $imp_answer in
     [Yy]*) UPLOAD=true ;;
     *) UPLOAD=false ;;
 esac
+
 # Make the DNAnexus directory
 if $UPLOAD; then dx mkdir -p "${DXOUTPUT}"; fi
 
@@ -70,7 +70,7 @@ function snipar_ibd {
         --bed "$1" \
         --pedigree "$2" \
         --chr_range "$3" \
-        --batches 1 --threads 12 \
+        --batches 1 --threads 4 \
         --ld_out \
         --out "$IBD_PATTERN"
 }
@@ -80,7 +80,7 @@ function snipar_impute {
         --pedigree "$2" \
         --chr_range "$3" \
         --ibd "$4" \
-        --processes 4 --chunks 8 --threads 12 \
+        --processes 4 --chunks 8 --threads 4 \
         --out "$IMP_PATTERN"
 }
 
@@ -147,33 +147,34 @@ if $MAKE_IMPUTATION; then
     fi
 fi
 
-# Base command for FGWAS
-fgwas=(
-    gwas.py "$PHEN"
+# Conditionally add the imputation flags based on the user input
+gwas_args=(
+    "$PHEN"
     --bed "$BED_PATTERN"
     --pedigree "$PED"
     --chr_range "$CHR_RANGE"
-    --cpu "$CPU" --threads 12
+    --cpu "$CPU"
+    --threads 4
     --out "$SUMSTATS_PATTERN"
 )
 
-# Conditionally add the imputation flags based on the user input
 if $MAKE_IMPUTATION; then
-    fgwas+=(--impute "$IMP_PATTERN" --robust)
+    gwas_args+=(--imp "$IMP_PATTERN" --robust)
 fi
 
 # Run the FGWAS
 echo "Running FGWAS..."
-"${fgwas[@]}" 2>&1 | tee "${OUTPUT}_fgwas.log" || echo "FGWAS failed. Please check the logs." && exit 1
+gwas.py "${gwas_args[@]}" 2>&1 | tee "${OUTPUT}_fgwas.log" || echo "FGWAS failed. Please check the logs." && exit 1
 
 # Upload results to DNAnexus
 if $UPLOAD; then
     echo "Uploading results to ${DXOUTPUT}..."
-    for file in "${OUTPUT_DIR%/}"/*.{csv,txt,log,gz}; do
+    for file in "${OUTPUT_DIR%/}"/*.*; do
         if [ -f "$file" ]; then
             dx upload "$file" --brief --path "${DXOUTPUT}"
         fi
     done
+        dx upload -r "${OUTPUT_DIR%/}"/sumstats/ --brief --path "${DXOUTPUT}"
     exit 0
 else
     echo "Results are available in ${OUTPUT_DIR}"
