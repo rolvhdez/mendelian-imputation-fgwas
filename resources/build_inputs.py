@@ -26,17 +26,27 @@ def main():
         help='Kinship data file (.seg)'
     )
     parser.add_argument(
+        '--pcs', 
+        type=str,
+        required=True,
+        help='Principal Components files (.txt)'
+    )
+    parser.add_argument(
         '--outDir', 
         type=str,
         required=True,
         help='Output directory.'
     )
     args = parser.parse_args()
-    input_paths = [args.kinship, args.baseline]
+    input_paths = [args.kinship, args.baseline, args.pcs]
 
     # Import data
     kinship = gtw.Data_Gateway(input_paths[0]).load_table()
     baseline = gtw.Data_Gateway(input_paths[1]).load_csv()
+    pcs = gtw.Data_Gateway(input_paths[2]).load_table()
+
+    # Change the PCs header
+    pcs = pcs.rename(columns={"sample.ID":"IID"})
 
     # Make KINSHIP catalogue for FID and IID
     dfk1 = kinship[["FID1", "ID1"]].rename(columns={"FID1": "FID", "ID1": "IID"})
@@ -75,6 +85,7 @@ def main():
 
     # Create: Covars
     covars = baseline[["FID", "IID", "AGE", "MALE"]]
+    covars = covars.merge(pcs.iloc[:, 0:9], left_on="IID", right_on="IID", how="left")
 
     # Create: Phenotype
     baseline = baseline.drop(["FID"], axis=1)
