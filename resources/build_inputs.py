@@ -64,6 +64,7 @@ def main():
         how="left"
     )
     baseline = baseline.drop(["PATID"], axis=1)
+    baseline = baseline[baseline[["FID", "IID"]].notnull().all(axis=1)]  # filter non-genotyped individuals
 
     # Create: Pedigree
     gtw.Data_Gateway.export(
@@ -102,7 +103,6 @@ def main():
     phenotype["BMI"] = phenotype["WEIGHT"] / (phenotype["HEIGHT"])**2 # calculate BMI
     phenotype.iloc[:, 2:] = intnorm(phenotype.iloc[:, 2:]) # normalize based on INT
     phenotype.iloc[:, 2:] = phenotype.iloc[:, 2:].fillna("NA") # fill NA's as described `here <https://github.com/AlexTISYoung/snipar/blob/553e7ac1b2d0cecdede013c8907843fd79b1dcf6/snipar/read/phenotype.py#L8>`
-    phenotype = phenotype[phenotype[["FID", "IID"]].notnull().all(axis=1)]  # filter non-genotyped individuals
     phenotype = phenotype.sort_values(by=["FID", "IID"]) # sort by FID and IID
 
     # Export: see the specifications: <https://snipar.readthedocs.io/en/latest/input%20files.html>
