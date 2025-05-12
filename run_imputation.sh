@@ -1,15 +1,15 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 set -e
 
-mkdir -p "${OUTDIR%/}/chr_imputed/"
+mkdir -p "${out_dir%/}/chr_imputed/"
 
 {
     impute.py \
-    --ibd "${OUTDIR%/}/ibd_segments/chr_@.ibd" \
-    --bed "${OUTDIR%/}/chr_segments/chr_@" \
-    --pedigree "${OUTDIR%/}/input_files/pedigree.txt" \
-    --chr_range "${CHR_RANGE}" \
-    --threads 10 \
-    --out "${OUTDIR%/}/chr_imputed/chr_@.imputed" \
-} 2>&1 | tee "${OUTDIR%/}/mendelian_imputation.log"
+        --ibd "${out_dir%/}/ibd_segments/chr_@.ibd" \
+        --bed "${out_dir%/}/chr_segments/chr_@" \
+        --pedigree "${out_dir%/}/pedigree.txt" \
+        --chr_range "${chr_range}" \
+        --threads 10 \
+        --out "${out_dir%/}/chr_imputed/chr_@.imputed"
+} 2>&1 | tee "${out_dir%/}/mendelian_imputation.log"

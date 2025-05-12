@@ -1,7 +1,9 @@
 #!/bin/bash
 
-mkdir -p "${OUTDIR%/}/chr_segments/"
+mkdir -p "${out_dir%/}/chr_segments/"
 
-for i in {1..22}; do
-    plink --bfile "${BED}" --chr $i --make-bed --out "${OUTDIR%/}/chr_segments/chr_$i"
-done
+{
+    for i in {1..22}; do
+        plink --bfile "${bed}" --chr $i --make-bed --out "${out_dir%/}/chr_segments/chr_$i"
+    done
+} 2>&1 | tee "${out_dir%/}/segment_bedfiles.log"

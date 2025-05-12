@@ -2,12 +2,14 @@
 
 set -e
 
+mkdir -p "${out_dir%/}/ibd_segments/"
+
 {
     ibd.py \
-    --bed "${OUTDIR%/}/chr_segments/chr_@" \
-    --pedigree "${OUTDIR%/}/input_files/pedigree.txt" \
-    --chr_range "${CHR_RANGE}" \
+    --bed "${out_dir%/}/chr_segments/chr_@" \
+    --pedigree "${out_dir%/}/pedigree.txt" \
+    --chr_range "${chr_range}" \
     --threads 10 --batches 1 \
     --ld_out \
-    --out "${OUTDIR%/}/ibd_segments/chr_@"
-} 2>&1 | tee "${OUTDIR%/}/ibd_inference.log"
+    --out "${out_dir%/}/ibd_segments/chr_@"
+} 2>&1 | tee "${out_dir%/}/ibd_inference.log"
