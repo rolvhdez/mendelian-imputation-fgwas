@@ -86,6 +86,7 @@ def main():
     # Create: Covars
     covars = baseline[["FID", "IID", "AGE", "MALE"]]
     covars = covars.merge(pcs.iloc[:, 0:9], left_on="IID", right_on="IID", how="left")
+    covars.iloc[:, 2:] = covars.iloc[:, 2:].fillna("NA") # fill NA's as described `here <https://github.com/AlexTISYoung/snipar/blob/553e7ac1b2d0cecdede013c8907843fd79b1dcf6/snipar/read/phenotype.py#L8>`
 
     # Create: Phenotype
     baseline = baseline.drop(["FID"], axis=1)
