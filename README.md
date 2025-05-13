@@ -1,6 +1,6 @@
 # Family-based GWAS workflow: SNIPAR
 
-A protocol to run a FGWAS with imputations according to Young, *et al*. ([2022]()); Guan, *et al.* ([2025]()).
+A protocol to run a FGWAS with imputations according to Young, *et al*. ([2022](https://www.nature.com/articles/s41588-022-01085-0)); Guan, *et al.* ([2025](https://www.nature.com/articles/s41588-025-02118-0)).
 
 ## Run the workflow
 
@@ -45,7 +45,7 @@ A protocol to run a FGWAS with imputations according to Young, *et al*. ([2022](
 
 ## Set up the environment
 ### Manually
-> Useful for creating [DNAnexus]() snapshots.
+> Useful for creating [DNAnexus](https://academy.dnanexus.com/docker/creating_docker_snapshots) snapshots.
 
 1. Install both versions of PLINK
 
@@ -87,6 +87,18 @@ A protocol to run a FGWAS with imputations according to Young, *et al*. ([2022](
 	```shell
 	# Activate it
 	. "$HOME/.cargo/env"
+	```
+
+4. Install *snipar*
+
+	```shell
+	conda create -n snipar_v0.0.22 python=3.9
+	```
+	```shell
+	conda activate snipar_v0.0.22
+	```
+	```shell
+	pip install snipar==0.0.22
 	```
 
 ### Docker
