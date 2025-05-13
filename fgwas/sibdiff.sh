@@ -5,6 +5,7 @@ set -e
 mkdir -p "${out_dir%/}/sumstats/"
 
 {
+    # instance_type = "mem1_ssd1_v2_x16"
     gwas.py \
         "${out_dir%/}/phenotype.txt" --phen_index $1 \
         --sib_diff \
@@ -15,6 +16,6 @@ mkdir -p "${out_dir%/}/sumstats/"
         --chr_range "${chr_range}" \
         --grm "${kinship}" \
         --sparse_thresh 0.05 \
-        --cpu 8 --threads 4 \
+        --cpu 4 --threads 1 \
         --out "${out_dir%/}/sumstats/chr_@.sibdiff"
 } 2>&1 | tee "${out_dir%/}/sibdiff_fgwas.log"
